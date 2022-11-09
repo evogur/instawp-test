@@ -14,14 +14,14 @@ namespace App\Traits;
 trait ApiResponses
 {
 	/**
-     * Return a success JSON response.
-     *
-     * @param  string  $message
-     * @param  int|null  $code
-     * @param  array|string  $data
-     * @return \Illuminate\Http\JsonResponse
-     */
-	protected function success(string $message = null, int $code, $data)
+	 * Return a success JSON response.
+	 *
+	 * @param  string  $message
+	 * @param  int|null  $code
+	 * @param  array|string  $data
+	 * @return \Illuminate\Http\JsonResponse
+	 */
+	protected function success(string $message = null, int $code = 201, $data = [])
 	{
 		return response()->json([
 			'status' => 'Success',
@@ -31,14 +31,14 @@ trait ApiResponses
 	}
 
 	/**
-     * Return an error JSON response.
-     *
-     * @param  string  $message
-     * @param  int  $code
-     * @param  array|string|null  $data
-     * @return \Illuminate\Http\JsonResponse
-     */
-	protected function error(string $message = null, int $code, $data = null)
+	 * Return an error JSON response.
+	 *
+	 * @param  string  $message
+	 * @param  int  $code
+	 * @param  array|string|null  $data
+	 * @return \Illuminate\Http\JsonResponse
+	 */
+	protected function error(string $message = null, int $code = 400, $data = [])
 	{
 		return response()->json([
 			'status' => 'Error',
@@ -46,5 +46,4 @@ trait ApiResponses
 			'data' => $data
 		], $code);
 	}
-
 }

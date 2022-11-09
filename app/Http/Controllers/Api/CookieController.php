@@ -18,63 +18,60 @@ class CookieController extends Controller
      * @param Request $request
      * @return response Message
      */
-    public function buyCookie(Request $request){
+    public function buyCookie(Request $request) {
         try{
+            $responseData = [];
             // Defining a static variable (In actual needs to get from DB)
-            $PRICE_PER_COOKIE = 1;
+            $pricePerCookie = 1;
             // -- Validation
-            $validateUser = Validator::make($request->all(), [
+            $validations = Validator::make($request->all(), [
                 'no_of_cookies' => 'required|integer|min:1'
             ]);
-            if($validateUser->fails()){
-                return $this->error(
-                    'Validation error', 
-                    401, 
-                    $validateUser->errors()
-                );
+            if(!$validations->fails()){
+                 // -- Check if wallet is empty
+                $wallet = auth()->user()->wallet;
+                if($wallet && $wallet > 0) {
+                    $totlaPrice = $pricePerCookie*$request->no_of_cookies;
+                    // -- Check if requested cookies are more then wallet
+                    if($totlaPrice > $wallet){
+                        $responseMessage = 'Sorry!! You does not have sufficient money in wallet';
+                        $resopnseCode = 422;
+                        $responseData = [
+                            'requested_cookies' => $request->no_of_cookies,
+                            'required_in_wallet' => $totlaPrice,
+                            'currently_in_wallet' => $wallet,
+                        ];
+                    }else{
+                        $user = User::where('id', '=', auth()->user()->id);
+                        $updateWallet = number_format($wallet - $totlaPrice, 2);
+                        $user->update(['wallet' => $updateWallet]);
+                        $responseMessage = `Yeah! You have successfully bought the $request->no_of_cookies  cookies`;
+                        $resopnseCode = 201;
+                        $responseData = [
+                            'pending_amount' => $updateWallet,
+                            'cookies_bought' => $request->no_of_cookies
+                        ];
+                    }
+                }else{
+                    $responseMessage = 'Sorry!! Your wallet is empty. Go ahead and add some money.';
+                    $resopnseCode = 404;
+                }
+            }else{
+                $responseMessage = 'Validation error';
+                $resopnseCode = 422;
+                $responseData = $validations->errors();
             }
-
-            // -- Check if wallet is empty
-            $wallet = User::where('id', '=', auth()->user()->id)->pluck('wallet');
-            if(empty($wallet[0])){
-                return $this->error(
-                    'Sorry!! Your wallet is empty. Go ahead and add some money.', 
-                    400
-                ); 
+            if($resopnseCode == 201){
+                return $this->success($responseMessage,$resopnseCode,$responseData);
+            }else{
+                return $this->error($responseMessage,$resopnseCode,$responseData);
             }
-
-            // -- Check if requested cookies are more then wallet
-            if($PRICE_PER_COOKIE*$request->no_of_cookies > $wallet[0]){
-                return $this->error(
-                    'Sorry!! You does not have sufficient money in wallet', 
-                    400,
-                    [
-                        'requested_cookies' => $request->no_of_cookies,
-                        'required_in_wallet' => $PRICE_PER_COOKIE*$request->no_of_cookies,
-                        'currently_in_wallet' => $wallet[0],
-                    ]
-                ); 
-            }
-
-            User::where('id', '=', auth()->user()->id)
-            ->update([
-                'wallet' => auth()->user()->wallet - ($PRICE_PER_COOKIE*$request->no_of_cookies)
-            ]);
-
-            $remainingWallet = User::where('id', '=', auth()->user()->id)->pluck('wallet');
-            return $this->success(
-                'Yeah! You have successfully bought the ' . $request->no_of_cookies . ' cookies',
-                200,
-                [ 
-                    'pending_amount' => $remainingWallet[0], 
-                    'cookies_bought' => $request->no_of_cookies
-                ]
-            );
         }
         catch (\Throwable $th) {
-            Log::error('Error in BUY_COOKIE______START');
+            Log::error('ERROR_IN_BUY_COOKIE');
             Log::error($th);
-            return $this->error('Oops.. Error occour while inserting money in your wallet. Please try again. If issue persist then contact Site Admin', 401);
+            return $this->error('Oops.. Error occour while Buying a cookie. Please try again.
+             If issue persist then contact Site Admin', 500);
         }
     }
 }

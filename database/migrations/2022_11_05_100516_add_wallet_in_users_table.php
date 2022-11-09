@@ -14,7 +14,7 @@ class AddWalletInUsersTable extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->float('wallet', 11, 2)->after('remember_token')->nullable('true');
+            $table->float('wallet', 11, 2)->after('remember_token')->nullable()->default(0.00);
         });
     }
 

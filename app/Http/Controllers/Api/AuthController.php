@@ -19,93 +19,103 @@ class AuthController extends Controller
     /**
      * Create User
      * @param Request $request
-     * @return User 
+     * @return User
      */
-    public function createUser(Request $request) {
+    public function createUser(Request $request)
+    {
         try {
             // -- Validation
-            $validateUser = Validator::make($request->all(), 
-            [
-                'name' => 'required|max:20',
-                'email' => 'required|email|unique:users,email',
-                'password' => 'required|min:5'
-            ]);
-            if($validateUser->fails()){
-                return $this->error(
-                    'Validation error', 
-                    401, 
-                    $validateUser->errors()
-                );
-            }
-
-            // -- Create User & send Success response
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password)
-            ]);
-            return $this->success(
-                'User created successfully',
-                200,
-                [ 'token' => $user->createToken('API Token')->plainTextToken ]
+            $validations = Validator::make(
+                $request->all(),
+                [
+                    'name' => 'required|max:20',
+                    'email' => 'required|email|unique:users,email',
+                    'password' => 'required|min:5'
+                ]
             );
 
+            if (!$validations->fails()) {
+                // -- Create User & send Success response
+                $user = User::create([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'password' => Hash::make($request->password)
+                ]);
+                $responseMessage = 'User created successfully';
+                $resopnseCode = 201;
+                $responseData =  ['token' => $user->createToken('API Token')->plainTextToken];
+            } else {
+                $responseMessage = 'Validation error';
+                $resopnseCode = 422;
+                $responseData = $validations->errors();
+            }
 
+            if ($resopnseCode == 201) {
+                return $this->success($responseMessage, $resopnseCode, $responseData);
+            } else {
+                return $this->error($responseMessage, $resopnseCode, $responseData);
+            }
         } catch (\Throwable $th) {
-            Log::error('Error in CREATE_USER______START');
+            Log::error('ERROR_IN_CREATE_USER');
             Log::error($th);
-            return $this->error('Oops.. Error occour while registration. Please try again.', 401);
+            return $this->error('Oops.. Error occour while registration. Please try again.', 500);
         }
     }
 
 
-     /**
+    /**
      * Login The User
      * @param Request $request
      * @return User
      */
-    public function loginUser(Request $request) {
+    public function loginUser(Request $request)
+    {
         try {
+            $responseData = [];
             // -- Validation
-            $validateUser = Validator::make($request->all(), [
+            $validations = Validator::make($request->all(), [
                 'email' => 'required|email',
                 'password' => 'required|min:5'
             ]);
-            if($validateUser->fails()){
-                return $this->error(
-                    'Validation error', 
-                    401, 
-                    $validateUser->errors()
-                );
+
+            if (!$validations->fails()) {
+                // -- Check if credentials are correct
+                if (!Auth::attempt($request->only(['email', 'password']))) {
+                    $responseMessage = 'These credentials doesn\'t exist';
+                    $resopnseCode = 401;
+                } else {
+                    // -- Login and create token
+                    $user = User::where('email', $request->email)->first();
+                    $responseMessage = 'User Logged In Successfully';
+                    $resopnseCode = 200;
+                    $responseData = ['token' => $user->createToken("API TOKEN")->plainTextToken];
+                }
+            } else {
+                $responseMessage = 'Validation error';
+                $resopnseCode = 422;
+                $responseData = $validations->errors();
             }
 
-            if(!Auth::attempt($request->only(['email', 'password']))){
-                return $this->error('These credentials doesn\'t exist', 401);
+            if ($resopnseCode == 200) {
+                return $this->success($responseMessage, $resopnseCode, $responseData);
+            } else {
+                return $this->error($responseMessage, $resopnseCode, $responseData);
             }
-
-            // -- Login and create token
-            $user = User::where('email', $request->email)->first();
-            return $this->success(
-                'User Logged In Successfully',
-                200,
-                ['token' => $user->createToken("API TOKEN")->plainTextToken]
-            );
-
         } catch (\Throwable $th) {
             Log::error('Error in LOGIN_USER______START');
             Log::error($th);
             return $this->error('Oops.. Error occour while Logging you in. Please try again.', 500);
-            
         }
     }
 
     /**
      * Logout User
      * @param BearerToken
-     * @return [] 
+     * @return []
      */
-    public function logout() {
-        try{
+    public function logout()
+    {
+        try {
             auth()->user()->tokens()->delete();
             return $this->success(
                 'User Logout successfully',
@@ -116,7 +126,6 @@ class AuthController extends Controller
             Log::error('Error in LOGOUT_USER______START');
             Log::error($th);
             return $this->error('Oops.. Error occour while Logging you in. Please try again.', 500);
-            
         }
     }
 }
